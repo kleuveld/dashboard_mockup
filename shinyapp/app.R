@@ -5,45 +5,42 @@ library(here)
 
 #data management
 library(dplyr)
-library(sf)
+library(purrr)
+
 
 #shiny
 library(shiny)
 library(bslib)
 library(leaflet)
-library(shinydashboard )
-library(DT)
 library(RColorBrewer)
 
+library(sf)
 
-#shapefile downloaded here: https://67-20-120-230.unifiedlayer.com/downloads/world_borders.php
-# Read this shape file with the sf library.
-world_sf <- read_sf(here("shinyapp/DATA/TM_WORLD_BORDERS_SIMPL-0.3.shp"))
 
-# Clean the data object
-
-countries <- c("CN","US","IN","RU","JP","DE","KR","ID","SA","CA","BR","ZA","MX","AUS",
+countriesISO2 <- c("CN","US","IN","RU","JP","DE","KR","ID","SA","CA","BR","ZA","MX","AUS",
                      "GB","VN","IT","FR","AR","NG")
 
+countriesISO3 <- c("ARG", "BRA", "CAN", "CHN", "FRA", "DEU", "IND", "ITA", "JPN", "KOR", "MEX", "NGA",                                                     
+"RUS", "SAU", "ZAF", "GBR", "USA", "VNM", "IDN")    
+
+link <- 'https://raw.githubusercontent.com/kleuveld/dashboard_mockup/main/data/custom.geo.json'
+temp <- tempfile()
+download.file(link,temp)
+
+
 world_sf <- 
-  bind_rows(
-    world_sf %>%
-      select(NAME, ISO2) %>%
-      filter(ISO2 %in% countries) %>%
-      mutate(scenario = "BaU"),
-    world_sf %>%
-      select(NAME, ISO2) %>%
-      filter(ISO2 %in% countries) %>%
-      mutate(scenario = "Other")     
-  ) %>%
-
+  st_read(temp) %>%
+  select(name,adm0_iso)  %>%
+  mutate(scenario = "BaU") %>%
+  bind_rows({.} %>% mutate(scenario = "Other"))%>%
   mutate(biodiversityloss = runif(nrow(.),100, 500)) %>%
-  mutate(tooltip = paste0("Country: ", NAME, " (", ISO2, ")<br/>",
-                          "Biodiversity loss: ", round(biodiversityloss,0))) 
+  mutate(tooltip = paste0("Country: ", name, " (", adm0_iso, ")<br/>",
+                          "Biodiversity loss: ", round(biodiversityloss,0)))
 
-# generate a default data frame that the app starts with  
+
 default_data <- world_sf %>% 
-        filter(scenario == "BaU")            
+        filter(scenario == "BaU")
+
 
 # Create a color palette with handmade bins.
 mybins <- c(0, 100, 200, 300 , 400, 500)
@@ -52,26 +49,34 @@ mypalette <- colorBin(
   na.color = "transparent", bins = 5
 )
 
-ui <- page_sidebar(
 
-  title = "Biodiversity Dashboard",
+# UI ----
+ui <- fluidPage(
 
-  sidebar = sidebar(
+  # App title ----
+  titlePanel("Biodiversity Dashboard"),
+  sidebarLayout(
+    sidebarPanel(width = 3,
       selectInput("scenario", "Scenario", choices = c("BaU", "Other")),
       checkboxGroupInput(
         "selected_countries",
         "Select countries",
-        choices = unique(world_sf$ISO2),
-        selected = countries
-      )
-  ),
-  leafletOutput("mymap"),
-  valueBoxOutput("vbox"),
+        choices = countriesISO3,
+        selected = countriesISO3
+      ) 
+    ),
+
+    # Main panel for displaying outputs ----
+    mainPanel(width = 9,
+      leafletOutput("mymap"),
+
+    )
+  )
 )
 
+# Define server logic required to draw a histogram ----
+server <- function(input, output) {
 
-
-server <- function(input, output, session) {
 
   # render default map
   output$mymap <- renderLeaflet({
@@ -102,7 +107,7 @@ server <- function(input, output, session) {
   data <- 
     reactive({
         world_sf %>% 
-          filter(ISO2 %in% input$selected_countries) %>%
+          filter(adm0_iso %in% input$selected_countries) %>%
           filter(scenario == input$scenario)
     })
 
@@ -127,18 +132,7 @@ server <- function(input, output, session) {
       )
   })
 
-
-  # render a simple text box
-  output$vbox <- renderValueBox({
-    valueBox(
-          "Total Biodiversity Loss", 
-          round(sum(data()$biodiversityloss),0)
-    )
-        
-  })
-
-
-
 }
 
-shinyApp(ui, server)
+# Create Shiny app ----
+shinyApp(ui = ui, server = server)
