@@ -54,7 +54,7 @@ mypalette <- colorBin(
 ui <- fluidPage(
 
   # App title ----
-  titlePanel("Biodiversity Dashboard"),
+  titlePanel("Biodiversity Dashboard!"),
   sidebarLayout(
     sidebarPanel(width = 3,
       selectInput("scenario", "Scenario", choices = c("BaU", "Other")),
