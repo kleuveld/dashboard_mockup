@@ -87,20 +87,22 @@ poll_sectors <-
 #   left_join(read_csv(here("data/geo/ISO3_codes.csv"))) %>%
 #   filter(!is.na(adm0_iso)) %>%
 #   left_join(st_read(here('data/geo/custom.geo.json')) %>% select(adm0_iso))  
-
 pollination <-
-st_read(here('data/geo/custom.geo.json'))  %>%
- select(adm0_iso) %>%
- #right_join(read_csv(here("data/geo/ISO3_codes.csv"))) %>%
- right_join(
   poll_gdp %>%
-    bind_rows(poll_sectors) %>%
-    left_join(read_csv(here("data/geo/ISO3_codes.csv"))) %>%
-    filter(!is.na(adm0_iso)) 
- )
+  bind_rows(poll_sectors) %>%
+  left_join(read_csv(here("data/geo/ISO3_codes.csv"))) %>%
+  filter(!is.na(adm0_iso)) 
+
 
 pollination %>%
   write_csv(here('data/pollination/pollination.csv'))
+
+pollination_geo <-
+st_read(here('data/geo/custom.geo.json'))  %>%
+ select(adm0_iso) %>%
+ right_join(pollination) 
+
+
 
 
 ```
@@ -113,7 +115,7 @@ First, get the data I want to map ready:
 ```{r eval=TRUE, include = TRUE, echo=TRUE, warning=TRUE, error=TRUE, message=FALSE}
 
 mapdata <-
-  pollination %>%
+  pollination_geo %>%
   filter(Scenario == "Pollination_20perc") %>%
   filter(outcome == "pct_change") %>%
   filter(Sector == "All")
@@ -160,7 +162,7 @@ Also, using `plotly()`, I can make some nicer looking plots:
 
 
 plot <-
-  pollination %>%
+  pollination_geo %>%
   filter(outcome == "pct_change") %>%
   filter(Sector == "All") %>%
   ggplot(aes(x = Region, y = value, fill = Scenario)) + 
