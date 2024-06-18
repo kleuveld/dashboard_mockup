@@ -1,0 +1,168 @@
+---
+title: Dashboard preparations
+author: koen
+output: 
+#  pdf_document: default
+#  word_document: default
+  html_document: default
+#bibliography: literature/references.bib
+
+
+#more info:
+#https://www.rstudio.com/wp-content/uploads/2015/03/rmarkdown-reference.pdf
+---
+
+
+# Loading packages
+
+```{r eval=TRUE, include = TRUE, echo=TRUE, warning=TRUE, error=TRUE, message=FALSE}
+
+library(tidyverse)
+library(readxl)
+library(here)
+
+library(sf)
+library(leaflet)
+library(RColorBrewer)
+
+
+library(plotly) 
+
+```
+
+# Data Prep
+
+```{r eval=TRUE, include = TRUE, echo=TRUE, warning=TRUE, error=TRUE, message=FALSE}
+
+
+
+
+
+
+poll_gdp <- 
+  read_excel(here("data/pollination/raw/Pollination GDP change core countries with USA.xlsx"))   %>%
+  fill(Region) %>%
+  mutate(Scenario = case_when(
+                      Scenario == "20% pollination loss" ~ "Pollination_20perc",
+                      Scenario == "100% pollination loss" ~ "Pollination_100pc",
+                      .default = NA),
+        Sector = "All") %>%
+  rename(abs_change = `Absolute GDP loss`, pct_change = `% GDP loss`) %>%
+  pivot_longer(c(abs_change,pct_change),names_to = "outcome")
+
+
+poll_sectors <-
+  read_excel(here("data/pollination/raw/Pollination sector change all ctries.xlsx")) %>%
+  rename(Scenario = ScenarioShort, Sector = GICS) %>%
+  rename(abs_change = `Production Volume abs Change`, pct_change = `Production Volume % Change`) %>%
+  pivot_longer(c(abs_change,pct_change),names_to = "outcome")
+
+
+# soil_agri <-
+#   read_excel(here("data/pollination/raw/Soil erosion agirprod change all countries.xlsx")) %>%
+#   rename(Scenario = ScenarioShort) %>%
+
+#   rename(`Percentage change agricultural sector in million USD` = `Percentage change`) %>%
+#   pivot_longer(c(`Absolute change agricultural sector in million USD`,`Percentage change agricultural sector in million USD`),names_to = "outcome") 
+
+# soil_gdp <-
+
+#   read_excel(here("data/pollination/raw/Soil erosion GDP change all countries .xlsx"))  %>%
+#   rename(`Percentage change GDP change in million USD` = `Percentage change`) %>%
+#   pivot_longer(c(`Absolute GDP change in million USD`,`Percentage change GDP change in million USD`),names_to = "outcome") 
+
+
+# all_scenarios <-
+#   poll_gdp %>%
+#   bind_rows(poll_sectors) %>%
+#   bind_rows(soil_agri) %>%
+#   bind_rows(soil_gdp) %>%
+#   left_join(read_csv(here("data/geo/ISO3_codes.csv"))) %>%
+#   filter(!is.na(adm0_iso)) %>%
+#   left_join(st_read(here('data/geo/custom.geo.json')) %>% select(adm0_iso))
+
+# pollination <-
+#   poll_gdp %>%
+#   bind_rows(poll_sectors) %>%
+#   left_join(read_csv(here("data/geo/ISO3_codes.csv"))) %>%
+#   filter(!is.na(adm0_iso)) %>%
+#   left_join(st_read(here('data/geo/custom.geo.json')) %>% select(adm0_iso))  
+
+pollination <-
+st_read(here('data/geo/custom.geo.json'))  %>%
+ select(adm0_iso) %>%
+ #right_join(read_csv(here("data/geo/ISO3_codes.csv"))) %>%
+ right_join(
+  poll_gdp %>%
+    bind_rows(poll_sectors) %>%
+    left_join(read_csv(here("data/geo/ISO3_codes.csv"))) %>%
+    filter(!is.na(adm0_iso)) 
+ )
+
+
+```
+
+
+# Making a Map
+
+First, get the data I want to map ready:
+
+```{r eval=TRUE, include = TRUE, echo=TRUE, warning=TRUE, error=TRUE, message=FALSE}
+
+mapdata <-
+  pollination %>%
+  filter(Scenario == "Pollination_20perc") %>%
+  filter(outcome == "pct_change") %>%
+  filter(Sector == "All")
+
+```
+
+And also a palette which I can include in the map.
+
+```{r eval=TRUE, include = TRUE, echo=TRUE, warning=TRUE, error=TRUE, message=FALSE}
+
+mypalette <- colorBin(
+  palette = "YlOrBr", domain = mapdata$value,
+  na.color = "transparent", bins = 5
+)
+
+```
+
+Finally use the `leaflet()` function to draw the map:
+
+```{r eval=TRUE, include = TRUE, echo=TRUE, warning=TRUE, error=TRUE, message=FALSE}
+
+leaflet(mapdata) %>%
+        addTiles() %>%
+        setView(lat = 10, lng = 0, zoom = 2) %>%
+        addPolygons(
+          fillColor = ~ mypalette(value),
+          stroke = TRUE,
+          fillOpacity = 0.9,
+          color = "white",
+          weight = 0.3,
+        ) %>%
+        addLegend(
+          pal = mypalette, values = ~value, opacity = 0.9,
+          title = "GDP Change (%)", position = "bottomleft"
+        )
+
+```
+
+Also, using `plotly()`, I can make some nicer looking plots:
+
+```{r eval=TRUE, include = TRUE, echo=TRUE, warning=TRUE, error=TRUE, message=FALSE}
+
+
+
+
+plot <-
+  pollination %>%
+  filter(outcome == "pct_change") %>%
+  filter(Sector == "All") %>%
+  ggplot(aes(x = Region, y = value, fill = Scenario)) + 
+    geom_bar(position = "dodge", stat = "identity") 
+
+  ggplotly(plot)
+
+```
