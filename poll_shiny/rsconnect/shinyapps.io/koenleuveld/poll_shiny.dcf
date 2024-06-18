@@ -1,0 +1,10 @@
+name: poll_shiny
+title:
+username: koenleuveld
+account: koenleuveld
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 12199094
+bundleId: 8757800
+url: https://koenleuveld.shinyapps.io/poll_shiny/
+version: 1
