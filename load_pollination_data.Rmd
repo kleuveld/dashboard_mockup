@@ -99,6 +99,9 @@ st_read(here('data/geo/custom.geo.json'))  %>%
     filter(!is.na(adm0_iso)) 
  )
 
+pollination %>%
+  write_csv(here('data/pollination/pollination.csv'))
+
 
 ```
 
