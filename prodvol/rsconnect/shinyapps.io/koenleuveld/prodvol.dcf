@@ -1,0 +1,10 @@
+name: prodvol
+title:
+username: koenleuveld
+account: koenleuveld
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 12199781
+bundleId: 8758368
+url: https://koenleuveld.shinyapps.io/prodvol/
+version: 1

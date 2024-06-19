@@ -97,9 +97,14 @@ pollination <-
 pollination %>%
   write_csv(here('data/pollination/pollination.csv'))
 
+geo <- 
+  st_read(here('data/geo/custom.geo.json')) %>%
+   select(adm0_iso) 
+
+
+
 pollination_geo <-
-st_read(here('data/geo/custom.geo.json'))  %>%
- select(adm0_iso) %>%
+  geo %>%
  right_join(pollination) 
 
 
@@ -170,4 +175,49 @@ plot <-
 
   ggplotly(plot)
 
+```
+
+Willem-Jan sent some more interesting data; let's see if we can put that into a map:
+
+
+```{r eval=TRUE, include = TRUE, echo=TRUE, warning=TRUE, error=TRUE, message=FALSE}
+
+production_volume <- read_csv(here("data/Production_volume.csv"))
+
+production_volume_geo <-
+  geo  %>%
+  inner_join(production_volume, b= join_by(adm0_iso == REG))
+
+
+mapdata2 <-
+  production_volume_geo %>%
+  filter(ACTS == "pdr") %>%
+  filter(Scenario == "GDPEndoSSP2_noWaste") %>%
+  filter(Year == 2017)
+
+
+mypalette <- colorBin(
+  palette = "YlOrBr", domain = mapdata2$Value,
+  na.color = "transparent", bins = 10
+)
+
+
+
+leaflet(mapdata2) %>%
+        addTiles() %>%
+        setView(lat = 10, lng = 0, zoom = 2) %>%
+        addPolygons(
+          fillColor = ~ mypalette(Value),
+          stroke = TRUE,
+          fillOpacity = 0.9,
+          color = "white",
+          weight = 0.3,
+        ) %>%
+        addLegend(
+          pal = mypalette, values = ~Value, opacity = 0.9,
+          title = "Production change", position = "bottomleft"
+        )
+
+
+unique(production_volume_geo$ACTS)
 ```
